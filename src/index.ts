@@ -1,18 +1,20 @@
 import { AutoMap, classes } from "@automapper/classes";
 import { CamelCaseNamingConvention, createMapper } from "@automapper/core";
-import { Entity, IdentifiedReference, MikroORM, OneToOne, PrimaryKey, Property } from "@mikro-orm/core";
+import {mikro} from '@automapper/mikro';
+import {Entity, IdentifiedReference, MikroORM, OneToOne, PrimaryKey, Property, wrap} from '@mikro-orm/core';
 import { PostgreSqlDriver } from "@mikro-orm/postgresql";
 
 @Entity()
 export class Author {
   @PrimaryKey()
+  @AutoMap()
   id: number;
   
   @OneToOne(() => Book, (book) => book.author, {
     wrappedReference: true
   })
   @AutoMap({ typeFn: () => Book })
-  book: IdentifiedReference<Book>;
+  book?: IdentifiedReference<Book>;
 
   @Property()
   @AutoMap()
@@ -22,6 +24,7 @@ export class Author {
 @Entity()
 export class Book {
   @PrimaryKey()
+  @AutoMap()
   id: number;
   
   @OneToOne(()=> Author, (author) => author.book, {
@@ -54,11 +57,12 @@ const main = async () => {
     entities: [Author, Book],
     dbName: 'auto-mapper-mikro-orm-sample',
     type: 'postgresql',
+    allowGlobalContext: true
   });
   
   const mapper = createMapper({
     name: 'singleton-mapper',
-    pluginInitializer: classes,
+    pluginInitializer: mikro(),
     namingConventions: new CamelCaseNamingConvention(),
   });
 
@@ -66,7 +70,8 @@ const main = async () => {
     mapper.createMap(Author, AuthorDto);
     mapper.createMap(Book, BookDto)
 
-    const book = orm.em.create(Book, {id: 123, name: "John Doe"})
+    const author = orm.em.create(Author, {id: 123, name: "John Doe"});
+    const book = orm.em.create(Book, {id: 123, name: "John Doe's book", author})
     const bookDto = mapper.map(book, BookDto, Book);
 
     console.log(bookDto);
